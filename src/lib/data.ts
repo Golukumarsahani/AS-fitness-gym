@@ -1,4 +1,67 @@
+
 import { requireSupabase, supabase } from './supabase';
-export async function publicRows(table:string, columns='*') { if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) return []; let query=supabase.from(table).select(columns); if(table==='gym_hours') query=query.order('day_index',{ascending:true}); else query=query.eq(table==='social_links'?'is_enabled':'is_active',true).order('display_order',{ascending:true}); const {data,error}=await query.limit(100); if(error) { if(table==='membership_plans') return []; throw error; } return data||[]; }
-export async function readContent() { if(!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) return {}; const {data,error}=await supabase.from('website_content').select('key,value'); if(error) return {}; return Object.fromEntries((data||[]).map((x:any)=>[x.key,x.value])); }
-export async function submitEnquiry(input:Record<string,unknown>) { const client=requireSupabase(); const {data,error}=await client.functions.invoke('submit-enquiry',{body:input}); if(error) throw error; return data; }
+
+export async function publicRows(table: string, columns = '*') {
+  if (
+    !import.meta.env.VITE_SUPABASE_URL ||
+    !import.meta.env.VITE_SUPABASE_ANON_KEY
+  ) {
+    return [];
+  }
+
+  let query = supabase.from(table).select(columns);
+
+  if (table === 'gym_hours') {
+    query = query.order('day_index', { ascending: true });
+  } else {
+    query = query
+      .eq(table === 'social_links' ? 'is_enabled' : 'is_active', true)
+      .order('display_order', { ascending: true });
+  }
+
+  const { data, error } = await query.limit(100);
+
+  if (error) {
+    if (table === 'membership_plans') return [];
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function readContent() {
+  if (
+    !import.meta.env.VITE_SUPABASE_URL ||
+    !import.meta.env.VITE_SUPABASE_ANON_KEY
+  ) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from('website_content')
+    .select('key,value');
+
+  if (error) return {};
+
+  return Object.fromEntries((data || []).map((x: any) => [x.key, x.value]));
+}
+
+export async function submitEnquiry(input: Record<string, unknown>) {
+  const client = requireSupabase();
+
+  const { data, error } = await client.functions.invoke('smart-endpoint', {
+    body: input,
+  });
+
+  if (error) {
+    throw new Error(
+      data?.error || error.message || 'Could not submit enquiry.'
+    );
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data;
+}
