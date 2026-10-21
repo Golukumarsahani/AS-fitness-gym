@@ -13,11 +13,14 @@ declare const Deno: {
 /* ------------------------------------------------------------------ */
 // Local dev origins are always allowed. Add your production site(s) with the
 // ALLOWED_ORIGINS secret, e.g. "https://www.example.com,https://example.com".
+
 const DEFAULT_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:4173',
+  'https://as-fitness-gym.netlify.app',
 ];
+
 
 function corsFor(req: Request): Record<string, string> {
   const extra = (Deno.env.get('ALLOWED_ORIGINS') || '')
