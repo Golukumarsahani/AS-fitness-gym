@@ -70,3 +70,34 @@
 .pay-choice legend{font-size:12px;font-weight:700;padding:0 6px}
 .ok-notice{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .admin-form-select,.edit-form select{width:100%;border:1px solid #d9dce1;border-radius:5px;padding:12px;font-size:13px;background:#fff}
+
+/* ===== Premium polish (colours unchanged) ===== */
+html{scroll-behavior:smooth}::selection{background:#D7192022}
+.site-header{background:#ffffffeb;backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);box-shadow:0 1px 0 #0000000a,0 8px 30px #0000000a}
+.brand{gap:12px}.brand-logo{flex-shrink:0;filter:drop-shadow(0 4px 10px #d719201f)}.footer .brand-logo{width:48px;height:48px}
+.btn{border-radius:10px;letter-spacing:.2px;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s,background .2s}.btn-red{box-shadow:0 8px 22px #d7192033}.btn-red:hover{box-shadow:0 12px 28px #d719204d}.btn:active{transform:scale(.98)}
+.feature-card,.plan-card,.trainer-card,.form-card,.metric-card,.admin-panel{border-radius:14px}.feature-card,.plan-card,.trainer-card{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s}.feature-card:hover,.plan-card:hover,.trainer-card:hover{transform:translateY(-5px);box-shadow:0 18px 44px #1111111a}
+.hero{background-attachment:scroll}.hero-content{animation:rise .8s cubic-bezier(.2,.8,.2,1) both}.section,.page-heading{animation:fade .6s ease both}
+.gallery-item,.photo-stack>img,.intro-image{border-radius:14px}
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.owner-line b{color:var(--text)}.owner-card{display:flex;align-items:center;gap:16px;margin:26px 0;padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:0 8px 26px #1111110d}.owner-card small{display:block;color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase}.owner-card b{font:600 24px 'Oswald',sans-serif;letter-spacing:1px}
+/* language switch */
+.lang-switch{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:3px;background:#fff}.lang-switch button{border:0;background:transparent;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700;color:#484848}.lang-switch button.on{background:var(--red);color:#fff}
+.nav-install{min-height:38px;padding:8px 12px}
+/* cookie banner */
+.cookie-banner{position:fixed;left:16px;right:16px;bottom:16px;max-width:760px;margin:0 auto;z-index:90;background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between;box-shadow:0 20px 60px #00000030;animation:rise .5s both}.cookie-banner p{margin:4px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}.cookie-banner a{color:var(--red);font-weight:700}.cookie-actions{display:flex;gap:8px;flex-shrink:0}.cookie-actions .btn{min-height:40px;padding:9px 16px}
+@media(max-width:640px){.cookie-banner{flex-direction:column;align-items:stretch}.cookie-actions .btn{flex:1}}
+/* admin image field + select */
+.image-field{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px dashed #d9dce1;border-radius:12px}.image-field img{width:100%;max-height:200px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--border)}.image-empty{padding:26px;text-align:center;font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px}.image-field .upload-control{margin:0}
+.login-settings select{width:100%;border:1px solid #d9dce1;border-radius:5px;padding:12px;font-size:13px;background:#fff}
+/* ===== Installed app mode (phone app look) ===== */
+.app-shell{min-height:100dvh;background:#fff}.app-bar{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:#ffffffee;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #eee}.app-bar .brand{font-size:15px}.app-bar .brand-logo{width:36px;height:36px}.app-bar .lang-switch button{padding:5px 8px;font-size:10px}
+.app-main{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.tab-bar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:grid;grid-template-columns:repeat(5,1fr);background:#fffffff2;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid #eee;padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px #0000000d}.tab-bar a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#8a8f98;padding:6px 0;border-radius:12px;transition:color .2s,transform .2s}.tab-bar a:active{transform:scale(.92)}.tab-bar a.active{color:var(--red)}
+html.app-mode{overscroll-behavior-y:none}html.app-mode body{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}html.app-mode input,html.app-mode textarea{-webkit-user-select:text;user-select:text}
+html.app-mode .cookie-banner{bottom:calc(84px + env(safe-area-inset-bottom))}
+.app-shell .hero{min-height:440px}.app-shell .section{padding:44px 0}.app-shell .page-heading{padding:36px 0 30px}.app-shell .hero-side-label,.app-shell .footer-grid>div:nth-child(n+2),.app-shell .footer-bottom span:last-child{display:none}.app-shell .footer{padding-top:26px}.app-shell .footer-grid{grid-template-columns:1fr;padding-bottom:20px}.app-shell .footer-bottom{justify-content:center}
+.app-shell .feature-card,.app-shell .plan-card,.app-shell .trainer-card{border-radius:18px}
+/* install popup */
+.install-popup{position:fixed;top:14px;right:14px;left:14px;max-width:400px;margin-left:auto;z-index:95;background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 20px 60px #00000033;animation:rise .5s both;display:flex;flex-direction:column;gap:12px}.install-head{display:flex;gap:12px;align-items:center;padding-right:22px}.install-head p{margin:3px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}.install-x{position:absolute;top:10px;right:10px;border:0;background:transparent;color:#888;padding:4px}.install-actions{display:flex;gap:8px;flex-wrap:wrap}.install-actions .btn{flex:1;min-height:42px;padding:9px 12px}
