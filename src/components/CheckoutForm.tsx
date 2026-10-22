@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, CalendarDays, Check, Lock, ShieldCheck } from 'lucide-react';
 import { publicRows } from '../lib/data';
 import { inr } from '../lib/validation';
-import { requireSupabase } from '../lib/supabase';
+import { requireSupabase, supabase } from '../lib/supabase';
+import { Link, useLocation } from 'react-router-dom';
 
 declare global {
   interface Window {
@@ -64,6 +65,7 @@ const planPrice = (p: any) =>
   Number(p.joining_fee_inr || 0);
 
 export default function CheckoutForm({ initialPlan = '' }: { initialPlan?: string }) {
+  const [session, setSession] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [plansLoaded, setPlansLoaded] = useState(false);
   const [planId, setPlanId] = useState('');
@@ -77,6 +79,12 @@ export default function CheckoutForm({ initialPlan = '' }: { initialPlan?: strin
   const [status, setStatus] = useState<Status>(null);
   // A ref blocks double-clicks that happen before React re-renders `busy`.
   const submitting = useRef(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({data}) => setSession(data.session));
+    const {data: authListener} = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +118,7 @@ export default function CheckoutForm({ initialPlan = '' }: { initialPlan?: strin
     if (submitting.current || paid) return;
     setStatus(null);
 
+    if (!session?.user) return setStatus({ kind: 'error', text: 'Please sign in with Google before buying a membership.' });
     if (!planId) return setStatus({ kind: 'error', text: 'No active online membership plan is available.' });
     if (name.trim().length < 2) return setStatus({ kind: 'error', text: 'Please enter your full name.' });
     if (phone.trim().length < 8) return setStatus({ kind: 'error', text: 'Please enter a valid phone number.' });
@@ -130,6 +139,7 @@ export default function CheckoutForm({ initialPlan = '' }: { initialPlan?: strin
           email: email.trim() || null,
           preferred_start_date: start || null,
           consent: true,
+          auth_user_id: session.user.id,
         },
       });
       if (error) throw new Error(await describeInvokeError(error));
@@ -214,6 +224,11 @@ export default function CheckoutForm({ initialPlan = '' }: { initialPlan?: strin
   const total = base + joining;
   const duration = (p: any) => p.duration_label || `${p.duration_days || 30} days`;
   const benefits = (p: any): string[] => (Array.isArray(p.benefits) ? p.benefits.slice(0, 3) : []);
+
+  if (!session) {
+    const signIn = async () => { const client = requireSupabase(); const next = `${window.location.pathname}${window.location.search}`; const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}${next}`, queryParams: { prompt: 'select_account' } } }); if (error) setStatus({kind:'error', text:error.message}); };
+    return <div className="checkout-login-card"><h2>Login required to buy a membership</h2><p>Browse plans freely. Continue with Google to securely purchase your selected plan. After login, you will return to this checkout.</p><button type="button" className="btn btn-red" onClick={signIn}>Continue with Google</button>{status && <p className="status-error">{status.text}</p>}<p><Link className="text-link" to="/membership">Back to all plans</Link></p></div>;
+  }
 
   return (
     <form className="checkout" onSubmit={checkout} aria-busy={busy}>

@@ -145,6 +145,13 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const bearer = req.headers.get('Authorization') || '';
+    const accessToken = bearer.startsWith('Bearer ') ? bearer.slice(7) : '';
+    if (!accessToken) return json({ error: 'Please sign in with Google before buying a membership.', code: 'login_required' }, 401);
+    const { data: authData, error: authError } = await db.auth.getUser(accessToken);
+    if (authError || !authData.user) return json({ error: 'Your login session expired. Please sign in again.', code: 'invalid_session' }, 401);
+    const authUserId = authData.user.id;
+
     /* ---------------- 3. Load the plan (trusted source of price) -------- */
     // maybeSingle(): "no row" is data=null (not an error), so a genuine DB /
     // credential problem can be told apart from "plan does not exist".
@@ -283,6 +290,7 @@ Deno.serve(async (req: Request) => {
           phone,
           email: email || null,
           preferred_start_date: startDate || null,
+          auth_user_id: authUserId,
         },
       },
     });

@@ -14,6 +14,7 @@ import {
 } from './pages/PublicPages';
 import Admin from './admin/Admin';
 import Review from './pages/Review';
+import { LoginPage, ProfilePage } from './pages/AccountPages';
 
 export default function App() {
   return (
@@ -34,6 +35,8 @@ export default function App() {
               <Route path="contact" element={<Contact />} />
               <Route path="join" element={<Join />} />
               <Route path="review" element={<Review />} />
+              <Route path="login" element={<LoginPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route
                 path="privacy"
                 element={<Legal title="Privacy policy" />}

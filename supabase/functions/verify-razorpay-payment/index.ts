@@ -84,6 +84,7 @@ async function activateMembership(db: any, payment: any): Promise<void> {
   const snapshot = metadata.plan_snapshot || {};
   const customer = metadata.customer || {};
   const phone = String(customer.phone || '').trim();
+  const authUserId = typeof customer.auth_user_id === 'string' ? customer.auth_user_id : null;
   if (phone.length < 8) throw new Error('Payment metadata has no valid customer phone');
 
   // Find or create the member (phone is unique among non-archived members).
@@ -97,7 +98,13 @@ async function activateMembership(db: any, payment: any): Promise<void> {
     if (r.error) throw r.error;
     return r.data;
   };
-  let member = await findMember();
+  let member = null;
+  if (authUserId) {
+    const byAuth = await db.from('members').select('id').eq('auth_user_id', authUserId).neq('status', 'archived').maybeSingle();
+    if (byAuth.error) throw byAuth.error;
+    member = byAuth.data;
+  }
+  if (!member) member = await findMember();
   if (!member) {
     const created = await db
       .from('members')
@@ -105,6 +112,7 @@ async function activateMembership(db: any, payment: any): Promise<void> {
         full_name: String(customer.full_name || 'Online member'),
         phone,
         email: customer.email || null,
+        auth_user_id: authUserId,
         status: 'active',
       })
       .select('id')
@@ -116,6 +124,11 @@ async function activateMembership(db: any, payment: any): Promise<void> {
     } else {
       member = created.data;
     }
+  }
+
+  if (authUserId) {
+    const linked = await db.from('members').update({ auth_user_id: authUserId, email: customer.email || undefined }).eq('id', member.id).is('auth_user_id', null);
+    if (linked.error && linked.error.code !== '23505') throw linked.error;
   }
 
   const start =
