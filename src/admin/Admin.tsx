@@ -16,8 +16,344 @@ function downloadCsv(name:string,rows:any[]){if(!rows.length){alert('There are n
 function Timings(){const [rows,setRows]=useState<any[]>([]);const [error,setError]=useState('');const [busy,setBusy]=useState(false);useEffect(()=>{supabase.from('gym_hours').select('*').order('day_index').then(({data,error})=>{if(error)setError(error.message);else setRows(data||[])})},[]);const change=(id:string,key:string,value:any)=>setRows(rs=>rs.map(r=>r.id===id?{...r,[key]:value}:r));const save=async()=>{setBusy(true);setError('');for(const r of rows){if(!r.is_closed&&r.open_time>=r.close_time){setError(`Opening time must be earlier than closing time for ${r.day_of_week}.`);setBusy(false);return}}const {error}=await supabase.from('gym_hours').upsert(rows.map(({id,created_at,updated_at,...r})=>({...r,id})));if(error)setError(error.message);else alert('Gym timings saved. Public contact page reads the saved timings.');setBusy(false)};return <><AdminTitle title="Gym timings" sub="Edit opening hours and closed days."/>{error&&<div className="notice error-notice">{error}</div>}<div className="admin-panel hours-editor">{rows.map(r=><div className="hours-row" key={r.id}><b>{r.day_of_week}</b><label className="consent"><input type="checkbox" checked={r.is_closed} onChange={e=>change(r.id,'is_closed',e.target.checked)}/> Closed</label><label>Opens<input type="time" disabled={r.is_closed} value={r.open_time||'06:00'} onChange={e=>change(r.id,'open_time',e.target.value)}/></label><label>Closes<input type="time" disabled={r.is_closed} value={r.close_time||'22:00'} onChange={e=>change(r.id,'close_time',e.target.value)}/></label></div>)}{!rows.length&&<p>No hours rows found. Run the Supabase migrations first.</p>}<button className="btn btn-red" disabled={busy||!rows.length} onClick={save}><Save size={16}/>{busy?'Saving…':'Save changes'}</button></div><p className="fine-print">For split shifts, holidays and temporary closures, see the special_closures table; an extended calendar editor can be added to this section.</p></>}
 function GalleryManager(){const [rows,setRows]=useState<any[]>([]);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [caption,setCaption]=useState('');const [alt,setAlt]=useState('');const load=()=>supabase.from('gallery_images').select('*').order('display_order').then(({data,error})=>{if(error)setError(error.message);else setRows(data||[])});useEffect(()=>{load()},[]);const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type)||file.size>5*1024*1024){setError('Choose a JPG, PNG, WebP or AVIF image up to 5 MB.');return}setBusy(true);setError('');const path=`${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const {error:upErr}=await supabase.storage.from('gym-gallery').upload(path,file,{contentType:file.type,upsert:false});if(upErr){setError(upErr.message);setBusy(false);return}const {data:{publicUrl}}=supabase.storage.from('gym-gallery').getPublicUrl(path);const {error:dbErr}=await supabase.from('gallery_images').insert({image_url:publicUrl,storage_path:path,caption,alt_text:alt,category:'gym',display_order:rows.length,is_active:true});if(dbErr)setError(dbErr.message);else{setCaption('');setAlt('');await load()}setBusy(false);e.target.value=''};const remove=async(r:any)=>{if(!confirm('Delete this gallery image?'))return;const {error}=await supabase.storage.from('gym-gallery').remove([r.storage_path]);if(error){setError(error.message);return}const {error:dbErr}=await supabase.from('gallery_images').delete().eq('id',r.id);if(dbErr)setError(dbErr.message);else load()};return <><AdminTitle title="Gallery manager" sub="Upload and manage gym photography (5 MB max per image)."/>{error&&<div className="notice error-notice">{error}</div>}<div className="admin-panel"><div className="form-grid"><label>Caption<input value={caption} onChange={e=>setCaption(e.target.value)}/></label><label>Alternative text<input value={alt} onChange={e=>setAlt(e.target.value)}/></label></div><label className="upload-control">{busy?'Uploading…':'Choose image to upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy} onChange={upload}/></label><small>Files upload to the private owner-managed Supabase Storage bucket. Public images are delivered using public URLs.</small></div><div className="admin-gallery-grid">{rows.map(r=><div key={r.id} className="admin-gallery-item"><img src={r.image_url} alt={r.alt_text||r.caption||''}/><div><b>{r.caption||'Untitled image'}</b><button className="icon-action danger" onClick={()=>remove(r)}><Trash2 size={15}/> Delete</button></div></div>)}</div></>}
 function ImageField({k,label,value,onChange}:{k:string;label:string;value:string;onChange:(v:string)=>void}){const [busy,setBusy]=useState(false);const [err,setErr]=useState('');const up=async(e:React.ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type)||file.size>5*1024*1024){setErr('JPG, PNG, WebP or AVIF, max 5 MB.');return}setBusy(true);setErr('');const path=`site/${k}-${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const {error}=await supabase.storage.from('gym-gallery').upload(path,file,{contentType:file.type,upsert:false});if(error)setErr(error.message);else{onChange(supabase.storage.from('gym-gallery').getPublicUrl(path).data.publicUrl)}setBusy(false);e.target.value=''};return <div className="image-field span-two"><b>{label}</b>{value?<img src={value} alt={label}/>:<div className="image-empty">Default image in use</div>}<div className="row-actions"><label className="upload-control">{busy?'Uploading…':'Change image'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy} onChange={up}/></label>{value&&<button type="button" className="icon-action danger" onClick={()=>onChange('')}><Trash2 size={15}/> Use default</button>}</div>{err&&<small className="field-error">{err}</small>}<small>Remember to press “Save website content” below.</small></div>}
-function ContentManager(){const [rows,setRows]=useState<Record<string,string>>({});const [error,setError]=useState('');const [busy,setBusy]=useState(false);useEffect(()=>{supabase.from('website_content').select('key,value').then(({data,error})=>{if(error)setError(error.message);else setRows(Object.fromEntries((data||[]).map(r=>[r.key,typeof r.value==='string'?r.value:JSON.stringify(r.value)])))})},[]);const fields=[['hero_heading','Hero heading'],['hero_description','Hero description'],['hero_image','Home banner image'],['home_image','Home page photo'],['about_image','About page photo'],['logo_image','Logo image (optional – replaces default logo)'],['owner_name','Owner name (default: MD SADAM)'],['hero_heading_hi','Hero heading (हिन्दी)'],['hero_heading_hing','Hero heading (Hinglish)'],['hero_description_hi','Hero description (हिन्दी)'],['hero_description_hing','Hero description (Hinglish)'],['hero_primary_label','Primary button label'],['contact_phone','Contact phone'],['contact_email','Contact email'],['contact_address','Gym address'],['contact_whatsapp','WhatsApp number'],['contact_map_url','Google Maps URL'],['footer_text','Footer text'],['seo_title','SEO title'],['seo_description','SEO description']];const save=async()=>{setBusy(true);setError('');const payload=Object.entries(rows).map(([key,value])=>({key,value,updated_at:new Date().toISOString()}));const {error}=await supabase.from('website_content').upsert(payload,{onConflict:'key'});if(error)setError(error.message);else alert('Website content saved.');setBusy(false)};return <><AdminTitle title="Website content" sub="Edit public copy and contact information without a code change."/>{error&&<div className="notice error-notice">{error}</div>}<div className="admin-panel"><div className="form-grid">{fields.map(([key,label])=>['hero_image','home_image','about_image','logo_image'].includes(key)?<ImageField key={key} k={key} label={label} value={rows[key]||''} onChange={v=>setRows(r=>({...r,[key]:v}))}/>:<label key={key}>{label}{/description|heading|footer_text/.test(key)?<textarea rows={3} value={rows[key]||''} onChange={e=>setRows({...rows,[key]:e.target.value})}/>:<input value={rows[key]||''} onChange={e=>setRows({...rows,[key]:e.target.value})} placeholder={label}/>}</label>)}</div><button className="btn btn-red" disabled={busy} onClick={save}><Save size={16}/>{busy?'Saving…':'Save website content'}</button></div></>}
-function Reports(){const [payments,setPayments]=useState<any[]>([]);const [members,setMembers]=useState<any[]>([]);const [error,setError]=useState('');useEffect(()=>{Promise.all([supabase.from('payments').select('amount_inr,status,paid_at,created_at'),supabase.from('members').select('status,created_at')]).then(([p,m])=>{if(p.error||m.error)setError(p.error?.message||m.error?.message||'Could not load reports');setPayments(p.data||[]);setMembers(m.data||[])})},[]);const captured=payments.filter(p=>['captured','manual_paid'].includes(p.status));const gross=captured.reduce((s,p)=>s+Number(p.amount_inr||0),0);return <><AdminTitle title="Reports & analytics" sub="Summary based on records available to the owner account."/>{error&&<div className="notice error-notice">{error}</div>}<div className="metric-grid"><div className="metric-card"><span>Total member records</span><b>{members.length}</b><small>All-time</small></div><div className="metric-card"><span>Verified/manual recorded receipts</span><b>₹{gross.toLocaleString('en-IN')}</b><small>Captured online + audited manual_paid only; before refunds</small></div><div className="metric-card"><span>Successful payments</span><b>{captured.length}</b><small>Captured or recorded manual payment</small></div><div className="metric-card"><span>Failed / pending / other</span><b>{payments.length-captured.length}</b><small>Excluded from receipts</small></div></div><div className="admin-panel"><h3>Payment export</h3><p>Gross receipts shown above exclude pending and failed payments; refunds must be deducted separately to calculate net revenue.</p><button className="btn btn-light-border" onClick={()=>downloadCsv('payments-report',payments)}>Export payments CSV</button></div></>}
+
+
+
+function ContentManager() {
+  const [rows, setRows] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fields = [
+    ['hero_heading', 'Hero heading'],
+    ['hero_description', 'Hero description'],
+    ['hero_image', 'Home banner image'],
+    ['home_image', 'Home page photo'],
+    ['about_image', 'About page photo'],
+    ['logo_image', 'Logo image (optional – replaces default logo)'],
+    ['owner_name', 'Owner name (default: MD SADAM)'],
+    ['hero_heading_hi', 'Hero heading (हिन्दी)'],
+    ['hero_heading_hing', 'Hero heading (Hinglish)'],
+    ['hero_description_hi', 'Hero description (हिन्दी)'],
+    ['hero_description_hing', 'Hero description (Hinglish)'],
+    ['hero_primary_label', 'Primary button label'],
+    ['contact_phone', 'Contact phone'],
+    ['contact_email', 'Contact email'],
+    ['contact_address', 'Gym address'],
+    ['contact_whatsapp', 'WhatsApp number'],
+    ['contact_map_url', 'Google Maps URL'],
+    ['footer_text', 'Footer text'],
+    ['seo_title', 'SEO title'],
+    ['seo_description', 'SEO description'],
+  ];
+
+  useEffect(() => {
+    let active = true;
+
+    const loadContent = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const { data, error } = await supabase
+          .from('website_content')
+          .select('key, value');
+
+        if (!active) return;
+
+        if (error) {
+          setError(`Could not load website content: ${error.message}`);
+          return;
+        }
+
+        const loaded: Record<string, string> = {};
+
+        for (const row of data || []) {
+          const value = row.value;
+
+          loaded[row.key] =
+            typeof value === 'string'
+              ? value
+              : value == null
+                ? ''
+                : JSON.stringify(value);
+        }
+
+        setRows(loaded);
+      } catch (e) {
+        if (active) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : 'Could not load website content.'
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadContent();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const save = async () => {
+    setBusy(true);
+    setError('');
+
+    try {
+      const now = new Date().toISOString();
+
+      const payload = Object.entries(rows).map(([key, value]) => ({
+        key,
+        value,
+        updated_at: now,
+      }));
+
+      const { error } = await supabase
+        .from('website_content')
+        .upsert(payload, { onConflict: 'key' });
+
+      if (error) {
+        setError(`Save failed: ${error.message}`);
+        return;
+      }
+
+      const { data, error: reloadError } = await supabase
+        .from('website_content')
+        .select('key, value');
+
+      if (reloadError) {
+        setError(
+          `Saved, but reloading failed: ${reloadError.message}`
+        );
+        return;
+      }
+
+      const loaded: Record<string, string> = {};
+
+      for (const row of data || []) {
+        const value = row.value;
+
+        loaded[row.key] =
+          typeof value === 'string'
+            ? value
+            : value == null
+              ? ''
+              : JSON.stringify(value);
+      }
+
+      setRows(loaded);
+      window.alert('Website content saved successfully!');
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Unexpected error while saving website content.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <AdminTitle
+        title="Website content"
+        sub="Edit public copy and contact information without a code change."
+      />
+
+      {error && (
+        <div className="notice error-notice" role="alert">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="admin-panel">Loading website content...</div>
+      ) : (
+        <div className="admin-panel">
+          <div className="form-grid">
+            {fields.map(([key, label]) =>
+              [
+                'hero_image',
+                'home_image',
+                'about_image',
+                'logo_image',
+              ].includes(key) ? (
+                <ImageField
+                  key={key}
+                  k={key}
+                  label={label}
+                  value={rows[key] || ''}
+                  onChange={(value) =>
+                    setRows((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                />
+              ) : (
+                <label key={key}>
+                  {label}
+
+                  {/description|heading|footer_text/.test(key) ? (
+                    <textarea
+                      rows={3}
+                      value={rows[key] || ''}
+                      onChange={(e) =>
+                        setRows((current) => ({
+                          ...current,
+                          [key]: e.target.value,
+                        }))
+                      }
+                    />
+                  ) : (
+                    <input
+                      value={rows[key] || ''}
+                      onChange={(e) =>
+                        setRows((current) => ({
+                          ...current,
+                          [key]: e.target.value,
+                        }))
+                      }
+                      placeholder={label}
+                    />
+                  )}
+                </label>
+              )
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-red"
+            disabled={busy || loading}
+            onClick={save}
+          >
+            <Save size={16} />
+            {busy ? 'Saving…' : 'Save website content'}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Reports() {
+  const [payments, setPayments] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([
+      supabase
+        .from('payments')
+        .select('amount_inr,status,paid_at,created_at'),
+      supabase.from('members').select('status,created_at'),
+    ]).then(([p, m]) => {
+      if (!active) return;
+
+      if (p.error || m.error) {
+        setError(
+          p.error?.message ||
+            m.error?.message ||
+            'Could not load reports'
+        );
+      }
+
+      setPayments(p.data || []);
+      setMembers(m.data || []);
+    }).catch((e) => {
+      if (active) {
+        setError(
+          e instanceof Error
+            ? e.message
+            : 'Could not load reports.'
+        );
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const captured = payments.filter((p) =>
+    ['captured', 'manual_paid'].includes(p.status)
+  );
+
+  const gross = captured.reduce(
+    (sum, p) => sum + Number(p.amount_inr || 0),
+    0
+  );
+
+  return (
+    <>
+      <AdminTitle
+        title="Reports & analytics"
+        sub="Summary based on records available to the owner account."
+      />
+
+      {error && (
+        <div className="notice error-notice" role="alert">
+          {error}
+        </div>
+      )}
+
+      <div className="metric-grid">
+        <div className="metric-card">
+          <span>Total member records</span>
+          <b>{members.length}</b>
+          <small>All-time</small>
+        </div>
+
+        <div className="metric-card">
+          <span>Verified/manual recorded receipts</span>
+          <b>₹{gross.toLocaleString('en-IN')}</b>
+          <small>
+            Captured online + audited manual_paid only; before refunds
+          </small>
+        </div>
+
+        <div className="metric-card">
+          <span>Successful payments</span>
+          <b>{captured.length}</b>
+          <small>Captured or recorded manual payment</small>
+        </div>
+
+        <div className="metric-card">
+          <span>Failed / pending / other</span>
+          <b>{payments.length - captured.length}</b>
+          <small>Excluded from receipts</small>
+        </div>
+      </div>
+
+      <div className="admin-panel">
+        <h3>Payment export</h3>
+        <p>
+          Gross receipts shown above exclude pending and failed
+          payments; refunds must be deducted separately to calculate
+          net revenue.
+        </p>
+
+        <button
+          type="button"
+          className="btn btn-light-border"
+          onClick={() => downloadCsv('payments-report', payments)}
+        >
+          Export payments CSV
+        </button>
+      </div>
+    </>
+  );
+}
 
 function SettingsPage() {
   const { lang, setLang, t } = useLang();
@@ -33,26 +369,37 @@ function SettingsPage() {
   const [installBusy, setInstallBusy] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from('website_content')
-      .select('key, value')
-      .in('key', ['apk_url', 'install_popup_enabled'])
-      .then(({ data, error }) => {
-        if (error) {
-          setImsg(error.message);
-          return;
+    let active = true;
+
+    const loadSettings = async () => {
+      const { data, error } = await supabase
+        .from('website_content')
+        .select('key, value')
+        .in('key', ['apk_url', 'install_popup_enabled']);
+
+      if (!active) return;
+
+      if (error) {
+        setImsg(`Could not load install settings: ${error.message}`);
+        return;
+      }
+
+      for (const row of data || []) {
+        if (row.key === 'apk_url') {
+          setApk(typeof row.value === 'string' ? row.value : '');
         }
 
-        (data || []).forEach((r: any) => {
-          if (r.key === 'apk_url') {
-            setApk(String(r.value || ''));
-          }
+        if (row.key === 'install_popup_enabled') {
+          setPopup(row.value === true || row.value === 'true');
+        }
+      }
+    };
 
-          if (r.key === 'install_popup_enabled') {
-            setPopup(r.value !== false);
-          }
-        });
-      });
+    void loadSettings();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const saveLang = async () => {
@@ -109,28 +456,37 @@ function SettingsPage() {
     setInstallBusy(true);
     setImsg('');
 
-    const now = new Date().toISOString();
+    try {
+      const now = new Date().toISOString();
 
-    const { error } = await supabase
-      .from('website_content')
-      .upsert(
-        [
-          {
-            key: 'apk_url',
-            value: apk.trim(),
-            updated_at: now,
-          },
-          {
-            key: 'install_popup_enabled',
-            value: popup,
-            updated_at: now,
-          },
-        ],
-        { onConflict: 'key' }
+      const { error } = await supabase
+        .from('website_content')
+        .upsert(
+          [
+            {
+              key: 'apk_url',
+              value: apk.trim(),
+              updated_at: now,
+            },
+            {
+              key: 'install_popup_enabled',
+              value: popup,
+              updated_at: now,
+            },
+          ],
+          { onConflict: 'key' }
+        );
+
+      setImsg(error ? error.message : t('saved'));
+    } catch (e) {
+      setImsg(
+        e instanceof Error
+          ? e.message
+          : 'Could not save install settings.'
       );
-
-    setImsg(error ? error.message : t('saved'));
-    setInstallBusy(false);
+    } finally {
+      setInstallBusy(false);
+    }
   };
 
   return (
@@ -249,4 +605,66 @@ function SettingsPage() {
   );
 }
 
-function ResetPassword(){const [password,setPassword]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const submit=async(e:React.FormEvent)=>{e.preventDefault();if(password.length<10){setMessage('Use at least 10 characters.');return}setBusy(true);const {error}=await supabase.auth.updateUser({password});setMessage(error?.message||'Password updated. You can continue using the owner dashboard.');setBusy(false)};return <><AdminTitle title="Set a new password" sub="Choose a strong password for the owner account."/><form className="admin-panel login-settings" onSubmit={submit}><label>New password<input type="password" autoComplete="new-password" minLength={10} value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="btn btn-red" disabled={busy}>{busy?'Updating…':'Update password'}</button>{message&&<p role="status">{message}</p>}</form></>}
+function ResetPassword() {
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (password.length < 10) {
+      setMessage('Use at least 10 characters.');
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+
+      setMessage(
+        error?.message ||
+          'Password updated. You can continue using the owner dashboard.'
+      );
+    } catch (e) {
+      setMessage(
+        e instanceof Error ? e.message : 'Could not update password.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <AdminTitle
+        title="Set a new password"
+        sub="Choose a strong password for the owner account."
+      />
+
+      <form
+        className="admin-panel login-settings"
+        onSubmit={submit}
+      >
+        <label>
+          New password
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={10}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+
+        <button className="btn btn-red" disabled={busy}>
+          {busy ? 'Updating…' : 'Update password'}
+        </button>
+
+        {message && <p role="status">{message}</p>}
+      </form>
+    </>
+  );
+}
